@@ -12,6 +12,7 @@ import type {
   TypeAst,
   TypeArg,
 } from "./types.js";
+import { firstTypeArg, secondTypeArg, toTypeOrUnknown } from "./ast-utils.js";
 
 /** Emit TypeScript source from mapped tables (ts-morph). */
 export function emit(
@@ -170,17 +171,4 @@ function zodForTypeAst(type: TypeAst, resolvedTsType: string): string {
   }
 }
 
-function isTypeAst(arg: TypeArg | undefined): arg is TypeAst {
-  return (
-    typeof arg === "object" && arg !== null && "name" in arg && "args" in arg
-  );
-}
-function toTypeOrUnknown(arg: TypeArg | undefined): TypeAst {
-  return isTypeAst(arg) ? arg : { name: "Unknown", args: [] };
-}
-function firstTypeArg(t: TypeAst): TypeAst {
-  return toTypeOrUnknown(t.args[0]);
-}
-function secondTypeArg(t: TypeAst): TypeAst {
-  return toTypeOrUnknown(t.args[1]);
-}
+// helpers moved to ast-utils.ts

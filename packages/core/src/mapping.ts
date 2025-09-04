@@ -7,6 +7,7 @@ import type {
   EnumMember,
 } from "./types.js";
 import { toCamelCase, toPascalCase } from "./types.js";
+import { firstTypeArg, secondTypeArg, toTypeOrUnknown } from "./ast-utils.js";
 
 /** Map a ClickHouse TypeAst to a TypeScript type string. */
 export function mapTypeAstToTs(type: TypeAst, options: MappingOptions): string {
@@ -240,17 +241,4 @@ function findColumnByName(table: TableAst, name: string) {
   );
 }
 
-function isTypeAst(arg: TypeArg | undefined): arg is TypeAst {
-  return (
-    typeof arg === "object" && arg !== null && "name" in arg && "args" in arg
-  );
-}
-function toTypeOrUnknown(arg: TypeArg | undefined): TypeAst {
-  return isTypeAst(arg) ? arg : { name: "Unknown", args: [] };
-}
-function firstTypeArg(t: TypeAst): TypeAst {
-  return toTypeOrUnknown(t.args[0]);
-}
-function secondTypeArg(t: TypeAst): TypeAst {
-  return toTypeOrUnknown(t.args[1]);
-}
+// helpers moved to ast-utils.ts
