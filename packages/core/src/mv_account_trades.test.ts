@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import { generateSource } from './index.js';
+import { describe, it, expect } from "vitest";
+import { generateSource } from "./index.js";
 
 const map = {
-  int64As: 'bigint' as const,
-  decimal: 'string' as const,
-  datetimeAs: 'string' as const,
-  camelCase: true
+  int64As: "bigint" as const,
+  decimal: "string" as const,
+  datetimeAs: "string" as const,
+  camelCase: true,
 };
 
-describe('MV with WITH CTE and aggregates (solana_account_trades_daily)', () => {
-  it('infers final SELECT columns and aggregate types', () => {
+describe("MV with WITH CTE and aggregates (solana_account_trades_daily)", () => {
+  it("infers final SELECT columns and aggregate types", () => {
     const sql = `
 CREATE MATERIALIZED VIEW IF NOT EXISTS solana_account_trades_daily ENGINE AggregatingMergeTree() ORDER BY (timestamp, account, token)
 AS
@@ -58,4 +58,3 @@ GROUP BY timestamp, account, token;
     expect(out).toMatch(/acquisitionCostUsd: number/);
   });
 });
-

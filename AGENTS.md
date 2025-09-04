@@ -44,136 +44,226 @@ Build a TypeScript-based CLI tool that parses ClickHouse CREATE TABLE statements
 - Emit optional branded types (IPv4, IPv6).
 - Optional Zod schema output (--emit-zod) with precise validators.
 
-### 4. CLI UX
+# You must follow the Tiger Style philosophy
 
-Examples:
+_Version 0.1-dev_
 
-```bash
-subsquid-ch2ts create.sql --out types.ts --camel --int64-as bigint --decimal string
-subsquid-ch2ts create.sql --out types.ts --emit-zod
-subsquid-ch2ts create.sql --preset strict
-```
+**Tiger Style** is a coding philosophy focused on **safety**, **performance**, and **developer experience**. Inspired by the practices of TigerBeetle, it focuses on building robust, efficient, and maintainable software through disciplined engineering.
 
-## File Layout
+## 1. Core principles
 
-```
-packages/
-  cli/         # CLI entrypoint, commander wiring
-  core/        # lexer, parser, type mapping, emitter
-  presets/     # mapping presets (safe, strict, decimal.js, bigint)
-  testdata/    # input DDLs + golden outputs
-```
+Tiger Style is not just a set of coding standards; it's a practical approach to software development. By prioritizing **safety**, **performance**, and **developer experience**, you create code that is reliable, efficient, and enjoyable to work with.
 
-## Code Quality, Readability & Maintainability Rules
+### Safety
 
-### 1. Code Quality
+Safety is the foundation of Tiger Style. It means writing code that works in all situations and reduces the risk of errors. Focusing on safety makes your software reliable and trustworthy.
 
-- 100% strict TypeScript mode ("strict": true in tsconfig.json).
-- No any, unknown must be narrowed before use.
-- Every exported function and type must have JSDoc.
-- Exhaustive switch statements with never checks to ensure no type is unhandled.
-- Use pure functions in the mapping layer (no side effects).
+### Performance
 
-### 2. Readability
+Performance is about using resources efficiently to deliver fast, responsive software. Prioritizing performance early helps you design systems that meet or exceed user expectations.
 
-- Consistent naming: PascalCase for types/interfaces, camelCase for variables/functions, SCREAMING_CASE for constants.
-- Always include column comments and original ClickHouse type in generated JSDoc for traceability.
-- Keep functions small (<50 lines), single-responsibility. Split large modules into submodules.
-- Use Prettier + ESLint with a strict config (no unused vars, no implicit any, no shadowed vars).
+### Developer experience
 
-### 3. Maintainability
+A good developer experience improves code quality and maintainability. Readable and easy-to-work-with code encourages collaboration and reduces errors, leading to a healthier codebase that stands the test of time [[1]](#addendum-zero-technical-debt).
 
-- Modular package design: parser, mapper, emitter are fully isolated.
-- CLI must call into core libraries, not contain core logic.
-- Mapping presets (safe, strict, etc.) must live in dedicated config files, never hardcoded.
-- Add unit tests for every mapping rule and snapshot tests for DDL parsing.
-- CI must fail on lint, typecheck, or test failures.
-- All new features must include tests and docs before merging.
+## 2. Design goals
 
-### 4. Extensibility
+The design goals focus on building software that is safe, fast, and easy to maintain.
 
-- Grammar must be easy to extend for new DDL constructs (PARTITION BY, ORDER BY, etc.).
-- Support plugin-style extensions for new type mappings.
-- Keep public API stable: only expose parse, map, emit.
+### 2.1. Safety
+
+Safety in coding relies on clear, structured practices that prevent errors and strengthen the codebase. It's about writing code that works in all situations and catches problems early. By focusing on safety, you create reliable software that behaves predictably no matter where it runs.
+
+#### Control and limits
+
+Predictable control flow and bounded system resources are essential for safe execution.
+
+- **Simple and explicit control flow**: Favor straightforward control structures over complex logic. Simple control flow makes code easier to understand and reduces the risk of bugs. Avoid recursion if possible to keep execution bounded and predictable, preventing stack overflows and uncontrolled resource use.
+
+- **Set fixed limits**: Set explicit upper bounds on loops, queues, and other data structures. Fixed limits prevent infinite loops and uncontrolled resource use, following the **fail-fast** principle. This approach helps catch issues early and keeps the system stable.
+
+- **Limit function length**: Keep functions concise, ideally under **70 lines**. Shorter functions are easier to understand, test, and debug. They promote single responsibility, where each function does one thing well, leading to a more modular and maintainable codebase.
+
+- **Centralize control flow**: Keep switch or if statements in the main parent function, and move non-branching logic to helper functions. Let the parent function manage state, using helpers to calculate changes without directly applying them. Keep leaf functions pure and focused on specific computations. This divides responsibility: one function controls flow, others handle specific logic.
+
+#### Memory and types
+
+Clear and consistent handling of memory and types is key to writing safe, portable code.
+
+- **Use explicitly sized types**: Use data types with explicit sizes, like `u32` or `i64`, instead of architecture-dependent types like `usize`. This keeps behavior consistent across platforms and avoids size-related errors, improving portability and reliability.
+
+- **Static memory allocation**: Allocate all necessary memory during startup and avoid dynamic memory allocation after initialization. Dynamic allocation at runtime can cause unpredictable behavior, fragmentation, and memory leaks. Static allocation makes memory management simpler and more predictable.
+
+- **Minimize variable scope**: Declare variables in the smallest possible scope. Limiting scope reduces the risk of unintended interactions and misuse. It also makes the code more readable and easier to maintain by keeping variables within their relevant context.
+
+#### Error handling
+
+Correct error handling keeps the system robust and reliable in all conditions.
+
+- **Use assertions**: Use assertions to verify that conditions hold true at specific points in the code. Assertions work as internal checks, increase robustness, and simplify debugging.
+  - **Assert function arguments and return values**: Check that functions receive and return expected values.
+  - **Validate invariants**: Keep critical conditions stable by asserting invariants during execution.
+  - **Use pair assertions**: Check critical data at multiple points to catch inconsistencies early.
+  - **Fail fast on programmer errors**: Detect unexpected conditions immediately, stopping faulty code from continuing.
+
+- **Handle all errors**: Check and handle every error. Ignoring errors can lead to undefined behavior, security issues, or crashes. Write thorough tests for error-handling code to make sure your application works correctly in all cases.
+
+- **Treat compiler warnings as errors**: Use the strictest compiler settings and **treat all warnings as errors**. Warnings often point to potential issues that could cause bugs. Fixing them right away improves code quality and reliability.
+
+- **Avoid implicit defaults**: Explicitly specify options when calling library functions instead of relying on defaults. Implicit defaults can change between library versions or across environments, causing inconsistent behavior. Being explicit improves code clarity and stability.
+
+### 2.2. Performance
+
+Performance is about using resources efficiently to deliver fast, responsive software. Prioritizing performance early helps design systems that meet or exceed user expectations without unnecessary overhead.
+
+#### Design for performance
+
+Early design decisions have a significant impact on performance. Thoughtful planning helps avoid bottlenecks later.
+
+- **Design for performance early**: Consider performance during the initial design phase. Early architectural decisions have a big impact on overall performance, and planning ahead ensures you can avoid bottlenecks and improve resource efficiency.
+
+- **Napkin math**: Use quick, back-of-the-envelope calculations to estimate system performance and resource costs. For example, estimate how long it takes to read 1 GB of data from memory or what the expected storage cost will be for logging 100,000 requests per second. This helps set practical expectations early and identify potential bottlenecks before they occur.
+
+- **Batch operations**: Amortize expensive operations by processing multiple items together. Batching reduces overhead per item, increases throughput, and is especially useful for I/O-bound operations.
+
+#### Efficient resource use
+
+Focus on optimizing the slowest resources, typically in this order:
+
+1. **Network**: Optimize data transfer and reduce latency.
+2. **Disk**: Improve I/O operations and manage storage efficiently.
+3. **Memory**: Use memory effectively to prevent leaks and overuse.
+4. **CPU**: Increase computational efficiency and reduce processing time.
+
+#### Predictability
+
+Writing predictable code improves performance by reducing CPU cache misses and optimizing branch prediction.
+
+- **Ensure predictability**: Write code with predictable execution paths. Predictable code uses CPU caching and branch prediction better, leading to improved performance. Avoid patterns that cause frequent cache misses or unpredictable branching, as they degrade performance.
+
+- **Reduce compiler dependence**: Don't rely solely on compiler optimizations for performance. Write clear, efficient code that doesn't depend on compiler behavior. Be explicit in performance-critical sections to ensure consistent results across compilers.
+
+### 2.3. Developer experience
+
+Improving the developer experience creates a more maintainable and collaborative codebase.
+
+#### Name things
+
+Get the nouns and verbs right. Great names capture what something is or does and create a clear, intuitive model. They show you understand the domain. Take time to find good names, where nouns and verbs fit together, making the whole greater than the sum of its parts.
+
+- **Clear and consistent naming**: Use descriptive and meaningful names for variables, functions, and files. Good naming improves code readability and helps others understand each component's purpose. Stick to a consistent style, like `snake_case`, throughout the codebase.
+
+- **Avoid abbreviations**: Use full words in names unless the abbreviation is widely accepted and clear (e.g., `ID`, `URL`). Abbreviations can be confusing and make it harder for others, especially new contributors, to understand the code.
+
+- **Include units or qualifiers in names**: Append units or qualifiers to variable names, placing them in descending order of significance (e.g., `latency_ms_max` instead of `max_latency_ms`). This clears up meaning, avoids confusion, and ensures related variables, like `latency_ms_min`, line up logically and group together.
+
+- **Document the 'why'**: Use comments to explain why decisions were made, not just what the code does. Knowing the intent helps others maintain and extend the code properly. Give context for complex algorithms, unusual approaches, or key constraints.
+
+- **Use proper comment style**: Write comments as complete sentences with correct punctuation and grammar. Clear, professional comments improve readability and show attention to detail. They help create a cleaner, more maintainable codebase.
+
+#### Organize things
+
+Organizing code well makes it easy to navigate, maintain, and extend. A logical structure reduces cognitive load, letting developers focus on solving problems instead of figuring out the code. Group related elements, and simplify interfaces to keep the codebase clean, scalable, and manageable as complexity grows.
+
+- **Organize code logically**: Structure your code logically. Group related functions and classes together. Order code naturally, placing high-level abstractions before low-level details. Logical organization makes code easier to navigate and understand.
+
+- **Simplify function signatures**: Keep function interfaces simple. Limit parameters, and prefer returning simple types. Simple interfaces reduce cognitive load, making functions easier to understand and use correctly.
+
+- **Construct objects in-place**: Initialize large structures or objects directly where they are declared. In-place construction avoids unnecessary copying or moving of data, improving performance and reducing the potential for lifecycle errors.
+
+- **Minimize variable scope**: Declare variables close to their usage and within the smallest necessary scope. This reduces the risk of misuse and makes code easier to read and maintain.
+
+#### Ensure consistency
+
+Maintaining consistency in your code helps reduce errors and creates a stable foundation for the rest of the system.
+
+- **Avoid duplicates and aliases**: Prevent inconsistencies by avoiding duplicated variables or unnecessary aliases. When two variables represent the same data, there's a higher chance they fall out of sync. Use references or pointers to maintain a single source of truth.
+
+- **Pass large objects by reference**: If a function's argument is larger than 16 bytes, pass it as a reference instead of by value to avoid unnecessary copying. This can catch bugs early where unintended copies may occur.
+
+- **Minimize dimensionality**: Keep function signatures and return types simple to reduce the number of cases a developer has to handle. For example, prefer `void` over `bool`, `bool` over `u64`, and so on, when it suits the function's purpose.
+
+- **Handle buffer allocation cleanly**: When working with buffers, allocate them close to where they are used and ensure all corresponding cleanup happens in the same logical block. Group resource allocation and deallocation with clear newlines to make leaks easier to identify.
+
+#### Avoid off-by-one errors
+
+Off-by-one errors often result from casual interactions between an `index`, a `count`, or a `size`. Treat these as distinct types, and apply clear rules when converting between them.
+
+- **Indexes, counts, and sizes**: Indexes are 0-based, counts are 1-based, and sizes represent total memory usage. When converting between them, add or multiply accordingly. Use meaningful [names with units or qualifiers](#include-units-or-qualifiers-in-names) to avoid confusion.
+
+- **Handle division intentionally**: When dividing, make your intent clear by specifying how rounding should be handled in edge cases. Use functions or operators designed for exact division, floor division, or ceiling division. This avoids ambiguity and ensures the result behaves as expected.
+
+#### Code consistency and tooling
+
+Consistency in code style and tools improves readability, reduces mental load, and makes working together easier.
+
+- **Maintain consistent indentation**: Use a uniform indentation style across the codebase. For example, using 4 spaces for indentation provides better visual clarity, especially in complex structures.
+
+- **Limit line lengths**: Keep lines within a reasonable length (e.g., 100 characters) to ensure readability. This prevents horizontal scrolling and helps maintain an accessible code layout.
+
+- **Use clear code blocks**: Structure code clearly by separating blocks (e.g., control structures, loops, function definitions) to make it easy to follow. Avoid placing multiple statements on a single line, even if allowed. Consistent block structures prevent subtle logic errors and make code easier to maintain.
+
+- **Minimize external dependencies**: Reducing external dependencies simplifies the build process and improves security management. Fewer dependencies lower the risk of supply chain attacks, minimize performance issues, and speed up installation.
+
+- **Standardize tooling**: Using a small, standardized set of tools simplifies the development environment and reduces accidental complexity. Choose cross-platform tools where possible to avoid platform-specific issues and improve portability across systems.
 
 ---
 
-# Project Backlog
+## Addendum
 
-## Phase 1 – Project Setup
+### Addendum: Zero technical debt
 
-1. Initialize a pnpm monorepo with workspaces.
-2. Configure TypeScript with strict: true in tsconfig.json.
-3. Set up build tooling with tsup (CJS+ESM+bin output).
-4. Integrate changesets for versioning and release management.
-5. Add ESLint + Prettier with a strict configuration (no unused vars, no implicit any, no shadowed vars).
-6. Configure Vitest for unit and snapshot testing.
-7. Create GitHub Actions CI pipelines to run typecheck, lint, test, and build.
+While Tiger Style focuses on the core principles of safety, performance, and developer experience, these are reinforced by an underlying commitment to zero technical debt.
 
-## Phase 2 – Core Parser
+A **zero technical debt policy** is key to maintaining a healthy codebase and ensuring long-term productivity. Addressing potential issues proactively and building robust solutions from the start helps avoid debt that would slow future development.
 
-1. Add Chevrotain-based lexer/parser to handle ClickHouse CREATE TABLE subset:
-   - Column definitions
-   - Types (UInt, Int, Float, String, UUID, FixedString, Decimal, Nullable, LowCardinality, Array, Tuple, Map, Enum, Date/DateTime/DateTime64, IPv4, IPv6)
-   - Defaults, codecs, comments
+- **Do it right the first time**: Take the time to design and implement solutions correctly from the start. Rushed features lead to technical debt that requires costly refactoring later.
 
-2. Build an AST structure capturing column name, type, wrappers, precision/scale, default, and comment.
-3. Write snapshot tests with golden input DDLs → AST JSON outputs.
+- **Be proactive in problem-solving**: Anticipate potential issues and fix them before they escalate. Early detection saves time and resources, preventing performance bottlenecks and architectural flaws.
 
-## Phase 3 – Type Mapping
+- **Build momentum**: Delivering solid, reliable code builds confidence and enables faster development cycles. High-quality work supports innovation and reduces the need for future rewrites.
 
-1. Implement pure functions to map AST types to TypeScript types.
-2. Support configuration via options:
-   - --int64-as (bigint or string)
-   - --decimal (string or decimal.js)
-   - --datetime-as (string or Date)
+Avoiding technical debt ensures that progress is true progress—solid, reliable, and built to last.
 
-3. Add presets (safe, strict, decimal.js, bigint) in a dedicated package.
-4. Write unit tests for each mapping rule to ensure correctness.
-5. Ensure exhaustiveness with switch + never checks for unmapped types.
+### Addendum: Performance estimation
 
-## Phase 4 – Code Emission
+You should think about performance early in design. Napkin math is a helpful tool for this.
 
-1. Use ts-morph to programmatically emit .ts files.
-2. Generate:
-   - Exported interfaces (PascalCase table names, camelCase columns if --camel).
-   - JSDoc including original ClickHouse type and column comments.
-   - Branded types for IPv4 and IPv6.
+Napkin math uses simple calculations and rounded numbers to quickly estimate system performance and resource needs.
 
-3. Add optional Zod schema generation (--emit-zod).
-4. Ensure formatting consistency via Prettier and ts-morph printer.
-5. Add golden snapshot tests (DDL input → emitted TS files).
+- **Quick insights**: Understand system behavior fast without deep analysis.
+- **Early decisions**: Find potential bottlenecks early in design.
+- **Sanity checks**: See if an idea works before you build it.
 
-## Phase 5 – CLI Implementation
+For example, if you're designing a system to store logs, you can estimate storage costs like this:
 
-1. Implement CLI entrypoint with Commander (or Clipanion).
-2. Add flags:
-   - --out for output file
-   - --camel for camelCase conversion
-   - --int64-as, --decimal, --datetime-as
-   - --emit-zod
-   - --preset
-   - --fail-on-unknown
+```
+1. Estimate log volume:
+   Assume 1,000 requests per second (RPS)
+   Each log entry is about 1 KB
 
-3. Support stdin piping and file input.
-4. Add watch mode (--watch) for automatic regeneration.
-5. Add snapshot tests for CLI (input SQL → expected file output).
+2. Calculate daily log volume:
+   1,000 RPS * 86,400 seconds/day * 1 KB ≈ 86,400,000 KB/day ≈ 86.4 GB/day
 
-## Phase 6 – Quality & Maintainability
+3. Estimate monthly storage:
+   86.4 GB/day * 30 days ≈ 2,592 GB/month
 
-1. Enforce modular design:
-   - CLI only wires commands, no core logic.
-   - Core library provides parse, map, emit.
+4. Estimate cost (using $0.02 per GB for blob storage):
+   2,592 GB * 1000 GB/TB * $0.02/GB ≈ $51 per month
+```
 
-2. Ensure 100% test coverage for critical mapping and parsing paths.
-3. Write developer documentation for extending grammar and adding new mappings.
-4. Add examples in testdata/ (covering all ClickHouse type variants).
-5. Configure CI to fail on lint/type/test errors.
+This gives you a rough idea of monthly storage costs. It helps you check if your logging plan works. The idea is to get within 10x of the right answer.
 
-## Phase 7 – Extensibility
+For more, see [Simon Eskildsen's napkin math project](https://github.com/sirupsen/napkin-math).
 
-1. Extend grammar to support PARTITION BY and ORDER BY (metadata in JSDoc).
-2. Add plugin system for custom type mappings.
-3. Implement optional --infer-from-db (read schema from ClickHouse system tables).
-4. Add --emit-json-schema flag for downstream tooling.
-5. Provide migration guide for future grammar or mapping extensions.
+---
+
+## Colophon
+
+This document is a "remix" inspired by the original [Tiger Style guide](https://github.com/tigerbeetle/tigerbeetle/blob/ac75926f8868093b342ce2c64eac1e3001cf2301/docs/TIGER_STYLE.md) from the TigerBeetle project. In the spirit of [Remix Culture](https://en.wikipedia.org/wiki/Remix_culture), parts of this document are verbatim copies of the original work, while other sections have been rewritten or adapted to fit the goals of this version. This remix builds upon the principles outlined in the original document with a more general approach.
+
+- **Maintained by**: [Simon Klee](https://simonklee.dk)
+- **Version**: 0.1-dev
+- **Last updated**: October 2024
+- **License**: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Source**: [github.com/simonklee/tigerstyle](https://github.com/simonklee/tigerstyle)

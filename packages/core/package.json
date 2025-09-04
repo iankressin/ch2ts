@@ -13,7 +13,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "rimraf dist && tsup && tsc -p tsconfig.build.json --emitDeclarationOnly",
     "build:types": "rimraf dist .tsbuildinfo && tsc -p tsconfig.build.json --emitDeclarationOnly",
@@ -34,8 +36,13 @@
     "node": ">=18"
   },
   "tsup": {
-    "entry": ["src/index.ts"],
-    "format": ["esm", "cjs"],
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm",
+      "cjs"
+    ],
     "dts": false,
     "sourcemap": true,
     "clean": true,

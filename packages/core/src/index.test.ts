@@ -1,15 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import { emit, map, parse, type EmissionOptions, type MappingOptions } from './index.js';
+import { describe, expect, it } from "vitest";
+import {
+  emit,
+  map,
+  parse,
+  type EmissionOptions,
+  type MappingOptions,
+} from "./index.js";
 
-describe('@ch2ts/core placeholders', () => {
-  it('parse → map → emit produces stable output', () => {
-    const ddl = 'CREATE TABLE my_table (id UInt64 COMMENT \'id\', name String)';
+describe("@ch2ts/core placeholders", () => {
+  it("parse → map → emit produces stable output", () => {
+    const ddl = "CREATE TABLE my_table (id UInt64 COMMENT 'id', name String)";
     const tables = parse(ddl);
     const mapOpts: MappingOptions = {
-      int64As: 'bigint',
-      decimal: 'string',
-      datetimeAs: 'string',
-      camelCase: true
+      int64As: "bigint",
+      decimal: "string",
+      datetimeAs: "string",
+      camelCase: true,
     };
     const mapped = map(tables, mapOpts);
     const emitOpts: EmissionOptions = { emitZod: false };

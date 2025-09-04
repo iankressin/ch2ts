@@ -3,9 +3,8 @@
  * Options: {"emitZod":false}
  */
 export interface Events {
-    /** Original: UInt64 */
-    id: bigint;
-    /** Original: String */
-    name: string;
+  /** Original: UInt64 */
+  id: bigint;
+  /** Original: String */
+  name: string;
 }
-

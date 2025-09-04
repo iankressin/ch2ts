@@ -12,7 +12,10 @@ export interface TypeAst {
 export type TypeArg = TypeAst | number | string | EnumMember;
 
 /** Enum member for Enum8/Enum16. */
-export interface EnumMember { readonly key: string; readonly value: number }
+export interface EnumMember {
+  readonly key: string;
+  readonly value: number;
+}
 
 /** Column definition. */
 export interface ColumnAst {
@@ -34,20 +37,30 @@ export interface TableAst {
   /** For materialized views without explicit columns: source table name. */
   readonly mvFrom?: string;
   /** For materialized views without explicit columns: select items. */
-  readonly mvSelect?: readonly { name: string; alias?: string; srcName?: string; func?: string }[];
+  readonly mvSelect?: readonly {
+    name: string;
+    alias?: string;
+    srcName?: string;
+    func?: string;
+  }[];
   /** Optional: information extracted from a WITH CTE inside MV. */
   readonly mvCte?: {
     readonly name: string;
     readonly src?: string; // source table from FROM clause of CTE
-    readonly columns: readonly { name: string; alias?: string; srcName?: string; func?: string }[];
+    readonly columns: readonly {
+      name: string;
+      alias?: string;
+      srcName?: string;
+      func?: string;
+    }[];
   };
 }
 
 /** Mapping configuration options. */
 export interface MappingOptions {
-  readonly int64As: 'bigint' | 'string';
-  readonly decimal: 'string' | 'decimal.js';
-  readonly datetimeAs: 'string' | 'Date';
+  readonly int64As: "bigint" | "string";
+  readonly decimal: "string" | "decimal.js";
+  readonly datetimeAs: "string" | "Date";
   readonly camelCase: boolean;
   readonly failOnUnknown?: boolean;
   /** Optional mapping plugins to override or extend type mapping. */

@@ -13,8 +13,5 @@
     }
   },
   "include": ["src"],
-  "references": [
-    { "path": "../core" },
-    { "path": "../presets" }
-  ]
+  "references": [{ "path": "../core" }, { "path": "../presets" }]
 }

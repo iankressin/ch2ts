@@ -16,7 +16,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "clean": "rimraf dist",
@@ -37,13 +39,23 @@
     "node": ">=18"
   },
   "tsup": {
-    "entry": ["src/index.ts"],
-    "format": ["esm", "cjs"],
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm",
+      "cjs"
+    ],
     "dts": false,
     "sourcemap": true,
     "clean": true,
     "outDir": "dist",
-    "external": ["@ch2ts/core", "@ch2ts/presets"],
-    "banner": { "js": "#!/usr/bin/env node" }
+    "external": [
+      "@ch2ts/core",
+      "@ch2ts/presets"
+    ],
+    "banner": {
+      "js": "#!/usr/bin/env node"
+    }
   }
 }

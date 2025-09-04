@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { parse } from './index.js';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { describe, expect, it } from "vitest";
+import { parse } from "./index.js";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-describe('DDL parser (Phase 2)', () => {
-  it('parses a simple CREATE TABLE with basic types', () => {
-    const sql = readFileSync(resolve(process.cwd(), 'testdata/simple/create_simple.sql'), 'utf8');
+describe("DDL parser (Phase 2)", () => {
+  it("parses a simple CREATE TABLE with basic types", () => {
+    const sql = readFileSync(
+      resolve(process.cwd(), "testdata/simple/create_simple.sql"),
+      "utf8",
+    );
     const ast = parse(sql);
     expect(ast).toMatchInlineSnapshot(`
       [
@@ -40,7 +43,7 @@ describe('DDL parser (Phase 2)', () => {
     `);
   });
 
-  it('parses nested wrappers and params', () => {
+  it("parses nested wrappers and params", () => {
     const sql = `CREATE TABLE db.complicated (
       a Nullable(UInt64) COMMENT 'id',
       b LowCardinality(String),

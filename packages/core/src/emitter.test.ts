@@ -1,15 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import { emit, map, parse, type EmissionOptions, type MappingOptions } from './index.js';
+import { describe, expect, it } from "vitest";
+import {
+  emit,
+  map,
+  parse,
+  type EmissionOptions,
+  type MappingOptions,
+} from "./index.js";
 
-describe('emitter (ts-morph)', () => {
+describe("emitter (ts-morph)", () => {
   const baseMap: MappingOptions = {
-    int64As: 'bigint',
-    decimal: 'string',
-    datetimeAs: 'string',
-    camelCase: true
+    int64As: "bigint",
+    decimal: "string",
+    datetimeAs: "string",
+    camelCase: true,
   };
 
-  it('emits interface with JSDoc and branded types', () => {
+  it("emits interface with JSDoc and branded types", () => {
     const ddl = `
       /* block comment */
       CREATE TABLE db.events (
@@ -24,7 +30,7 @@ describe('emitter (ts-morph)', () => {
     expect(out).toMatchSnapshot();
   });
 
-  it('emits zod schemas for simple types', () => {
+  it("emits zod schemas for simple types", () => {
     const ddl = `CREATE TABLE t (a UInt64, b Nullable(String), c Array(UInt32));`;
     const ast = parse(ddl);
     const mapped = map(ast, baseMap);
@@ -32,4 +38,3 @@ describe('emitter (ts-morph)', () => {
     expect(out).toMatchSnapshot();
   });
 });
-
