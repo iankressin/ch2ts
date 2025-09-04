@@ -10,25 +10,26 @@ const Comma = createToken({ name: 'Comma', pattern: /,/ });
 const Dot = createToken({ name: 'Dot', pattern: /\./ });
 const Eq = createToken({ name: 'Eq', pattern: /=/ });
 const Semi = createToken({ name: 'Semi', pattern: /;/, group: Lexer.SKIPPED });
-const CREATE = createToken({ name: 'CREATE', pattern: /CREATE/i });
-const TABLE = createToken({ name: 'TABLE', pattern: /TABLE/i });
-const MATERIALIZED = createToken({ name: 'MATERIALIZED', pattern: /MATERIALIZED/i });
-const VIEW = createToken({ name: 'VIEW', pattern: /VIEW/i });
-const IF = createToken({ name: 'IF', pattern: /IF/i });
-const NOT = createToken({ name: 'NOT', pattern: /NOT/i });
-const EXISTS = createToken({ name: 'EXISTS', pattern: /EXISTS/i });
-const COMMENT_KW = createToken({ name: 'COMMENT_KW', pattern: /COMMENT/i });
-const DEFAULT_KW = createToken({ name: 'DEFAULT_KW', pattern: /DEFAULT/i });
-const CODEC_KW = createToken({ name: 'CODEC_KW', pattern: /CODEC/i });
-const PARTITION = createToken({ name: 'PARTITION', pattern: /PARTITION/i });
-const ORDER = createToken({ name: 'ORDER', pattern: /ORDER/i });
-const BY = createToken({ name: 'BY', pattern: /BY/i });
-const ENGINE = createToken({ name: 'ENGINE', pattern: /ENGINE/i });
-const AS = createToken({ name: 'AS', pattern: /AS/i });
-const SELECT = createToken({ name: 'SELECT', pattern: /SELECT/i });
-const FROM = createToken({ name: 'FROM', pattern: /FROM/i });
-const TO = createToken({ name: 'TO', pattern: /TO/i });
-const FOR_T = createToken({ name: 'FOR_T', pattern: /FOR/i });
+const CREATE = createToken({ name: 'CREATE', pattern: /\bCREATE\b/i });
+const TABLE = createToken({ name: 'TABLE', pattern: /\bTABLE\b/i });
+const MATERIALIZED = createToken({ name: 'MATERIALIZED', pattern: /\bMATERIALIZED\b/i });
+const VIEW = createToken({ name: 'VIEW', pattern: /\bVIEW\b/i });
+const IF = createToken({ name: 'IF', pattern: /\bIF\b/i });
+const NOT = createToken({ name: 'NOT', pattern: /\bNOT\b/i });
+const EXISTS = createToken({ name: 'EXISTS', pattern: /\bEXISTS\b/i });
+const COMMENT_KW = createToken({ name: 'COMMENT_KW', pattern: /\bCOMMENT\b/i });
+const DEFAULT_KW = createToken({ name: 'DEFAULT_KW', pattern: /\bDEFAULT\b/i });
+const CODEC_KW = createToken({ name: 'CODEC_KW', pattern: /\bCODEC\b/i });
+const PARTITION = createToken({ name: 'PARTITION', pattern: /\bPARTITION\b/i });
+const ORDER = createToken({ name: 'ORDER', pattern: /\bORDER\b/i });
+const BY = createToken({ name: 'BY', pattern: /\bBY\b/i });
+const ENGINE = createToken({ name: 'ENGINE', pattern: /\bENGINE\b/i });
+const AS = createToken({ name: 'AS', pattern: /\bAS\b/i });
+const WITH = createToken({ name: 'WITH', pattern: /\bWITH\b/i });
+const SELECT = createToken({ name: 'SELECT', pattern: /\bSELECT\b/i });
+const FROM = createToken({ name: 'FROM', pattern: /\bFROM\b/i });
+const TO = createToken({ name: 'TO', pattern: /\bTO\b/i });
+const FOR_T = createToken({ name: 'FOR_T', pattern: /\bFOR\b/i });
 const StringLiteral = createToken({ name: 'StringLiteral', pattern: /'(?:[^'\\]|\\.)*'/ });
 const Integer = createToken({ name: 'Integer', pattern: /\d+/ });
 const Identifier = createToken({ name: 'Identifier', pattern: /[A-Za-z_][A-Za-z0-9_]*/ });
@@ -38,7 +39,7 @@ const Unknown = createToken({ name: 'Unknown', pattern: /[^\s]/, group: Lexer.SK
 const ddlLexer = new Lexer([
   LineComment, BlockComment, WhiteSpace,
   LParen, RParen, Comma, Dot, Eq, Semi,
-  CREATE, TABLE, MATERIALIZED, VIEW, IF, NOT, EXISTS, COMMENT_KW, DEFAULT_KW, CODEC_KW, PARTITION, ORDER, BY, ENGINE, AS, SELECT, FROM, TO, FOR_T,
+  CREATE, TABLE, MATERIALIZED, VIEW, IF, NOT, EXISTS, COMMENT_KW, DEFAULT_KW, CODEC_KW, PARTITION, ORDER, BY, ENGINE, AS, WITH, SELECT, FROM, TO, FOR_T,
   StringLiteral, Integer, Identifier, Unknown
 ]);
 
@@ -111,27 +112,74 @@ class Parser {
     }
     if (this.match(ORDER)) {
       this.consume(BY, 'BY');
-      orderBy = this.captureExpressionUntil([]);
+      // Stop at AS (for MATERIALIZED VIEW) so we don't consume the SELECT clause
+      orderBy = this.captureExpressionUntil([AS]);
     }
     if (isMV) {
       // Skip "TO" and "FOR" MVs (should have been filtered earlier); otherwise derive columns from SELECT when not provided
       if (columns.length === 0) {
-        // expect AS SELECT ... FROM table
-        this.consume(AS, 'AS');
-        this.consume(SELECT, 'SELECT');
+        // expect possibly POPULATE or other options, then AS [WITH ...] SELECT ... FROM ...
+        if (!this.match(AS)) {
+          while (!this.isAtEnd() && !this.match(AS)) this.i++;
+        }
+        // After AS, there may be a WITH CTE block; if present parse basic info, then read the top-level SELECT
+        let cteName: string | undefined;
+        let cteItems: ReturnType<Parser['parseSelectList']> | undefined;
+        let cteSrc: string | undefined;
+        if (this.peek()?.tokenType === WITH) {
+          this.i++; // consume WITH
+          const t0 = this.peek();
+          const t1 = this.peek(1);
+          const t2 = this.peek(2);
+          const looksLikeCte = !!(t0 && t0.tokenType === Identifier && t1 && t1.tokenType === AS && t2 && t2.tokenType === LParen);
+          if (looksLikeCte) {
+            cteName = this.consume(Identifier, 'CTE name').image as string;
+            this.consume(AS, 'AS');
+            this.consume(LParen, '(');
+            this.consume(SELECT, 'SELECT');
+            cteItems = this.parseSelectList();
+            if (this.match(FROM)) {
+              cteSrc = this.qualifiedName();
+            }
+            // Skip to matching ')'
+            let depth = 1;
+            while (!this.isAtEnd() && depth > 0) {
+              if (this.match(LParen)) depth++;
+              else if (this.match(RParen)) depth--;
+              else this.i++;
+            }
+            // Top-level SELECT after CTE
+            this.consume(SELECT, 'SELECT');
+          } else {
+            // WITH named expressions. Skip until SELECT at top level
+            let depth = 0;
+            while (!this.isAtEnd()) {
+              const t = this.peek();
+              if (!t) break;
+              if (t.tokenType === LParen) { this.i++; depth++; continue; }
+              if (t.tokenType === RParen) { this.i++; depth = Math.max(0, depth - 1); continue; }
+              if (t.tokenType === SELECT && depth === 0) { this.i++; break; }
+              this.i++;
+            }
+          }
+        } else {
+          this.consume(SELECT, 'SELECT');
+        }
         const selectCols = this.parseSelectList();
         // Find source table for type inference if any
         let src: string | undefined;
         if (this.match(FROM)) {
           src = this.qualifiedName();
         }
+        // Use Unknown placeholder; mapping will resolve from source table
         columns = selectCols.map((sc) => ({
           name: sc.alias ?? sc.name,
-          type: { name: 'String', args: [] },
-          rawType: 'String',
+          type: { name: 'Unknown', args: [] },
+          rawType: 'Unknown',
           comment: undefined,
           default: undefined
         }));
+        return { name, columns, partitionBy, orderBy, mvFrom: src, mvSelect: selectCols, mvCte: cteName ? { name: cteName, src: cteSrc, columns: cteItems ?? [] } : undefined };
       }
     }
     return { name, columns, partitionBy, orderBy };
@@ -144,6 +192,8 @@ class Parser {
   }
 
   private columnDef(): ColumnAst {
+    // tolerate stray tokens until we find an identifier for column name
+    while (!this.isAtEnd() && this.peek()?.tokenType !== Identifier && this.peek()?.tokenType !== RParen) this.i++;
     const nameTok = this.consume(Identifier, 'column name');
     const typeStart = this.i;
     const type = this.typeExpr();
@@ -185,14 +235,14 @@ class Parser {
     this.i++; return String(t.image ?? '');
   }
 
-  private parseSelectList(): { name: string; alias?: string }[] {
-    const items: { name: string; alias?: string }[] = [];
+  private parseSelectList(): { name: string; alias?: string; srcName?: string; func?: string }[] {
+    const items: { name: string; alias?: string; srcName?: string; func?: string }[] = [];
     while (!this.isAtEnd()) {
       const t = this.peek();
       if (!t) break;
       if (t.tokenType === FROM) break;
       if (t.tokenType === Comma) { this.i++; continue; }
-      // simple identifier or qualified identifier
+      // identifier, optionally qualified or a function call with args
       if (t.tokenType === Identifier) {
         const id1 = this.consume(Identifier, 'identifier').image as string;
         let name = id1;
@@ -200,11 +250,41 @@ class Parser {
           const id2 = this.consume(Identifier, 'identifier').image as string;
           name = id2;
         }
+        // Look for function call and try to capture a plausible source column as srcName
+        let srcName: string | undefined;
+        let funcName: string | undefined;
+        if (this.match(LParen)) {
+          funcName = id1; // the identifier before '(' is function name
+          let depth = 1;
+          while (!this.isAtEnd() && depth > 0) {
+            const tt = this.peek();
+            if (!tt) break;
+            if (tt.tokenType === LParen) { this.i++; depth++; continue; }
+            if (tt.tokenType === RParen) { this.i++; depth--; continue; }
+            if (tt.tokenType === Identifier) {
+              // Heuristic: capture the first non-function identifier as source column
+              const inner1 = this.consume(Identifier, 'identifier').image as string;
+              // If this identifier is followed by '(', treat it as a function name and skip
+              if (this.peek()?.tokenType === LParen) {
+                continue;
+              }
+              let inner = inner1;
+              if (this.match(Dot)) {
+                inner = this.consume(Identifier, 'identifier').image as string;
+              }
+              if (!srcName) srcName = inner;
+              continue;
+            }
+            // skip others
+            this.i++;
+          }
+        }
         let alias: string | undefined;
         if (this.match(AS)) {
           alias = this.consume(Identifier, 'alias').image as string;
         }
-        items.push({ name, alias });
+        if (!srcName) srcName = name; // default to identifier when no function args parsed
+        items.push({ name, alias, srcName, func: funcName });
         continue;
       }
       // skip any other tokens until comma or FROM

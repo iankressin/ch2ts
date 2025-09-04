@@ -35,20 +35,120 @@ CREATE TABLE IF NOT EXISTS solana_swaps_raw
       PARTITION BY toYYYYMM(timestamp)
       ORDER BY (block_number, transaction_index, instruction_address);
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS wallet_performance_daily
-    ENGINE = AggregatingMergeTree()
-    ORDER BY (timestamp, account)
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS solana_dex_swaps_5m_candles
+    ENGINE AggregatingMergeTree()
+    ORDER BY (pool_address, timestamp, token_a, token_b, dex)
     POPULATE
 AS
-SELECT toStartOfDay(timestamp) AS timestamp,
-       account,
-       anyLastState(ssr.timestamp) as last_activity,
-       sumState(token_a_profit_usdc + token_b_profit_usdc) as profit_usdc,
-       sumState(abs(amount_a * token_a_usdc_price) + abs(amount_b * token_b_usdc_price)) as volume_usdc,
-       countState(amount_a > 0 AND amount_b > 0) as transaction_count
-FROM solana_swaps_raw ssr
-WHERE amount_a != 0
-  AND amount_b != 0
-  AND sign > 0
-GROUP BY timestamp, account;
+WITH slippage < 10 and abs(amount_a * token_a_usdc_price) >= 0.01 and amount_a != 0 and amount_b != 0 AS used_for_candles,
+    tuple(original.timestamp, transaction_index, instruction_address) AS swap_order
+SELECT toStartOfFiveMinute(timestamp)                                   AS timestamp,
+       pool_address,
+       token_a,
+       token_b,
+       dex,
+       argMinStateIf(token_a_usdc_price, swap_order, used_for_candles)  AS open_token_a,
+       maxStateIf(token_a_usdc_price, used_for_candles)                 AS high_token_a,
+       minStateIf(token_a_usdc_price, used_for_candles)                 AS low_token_a,
+       argMaxStateIf(token_a_usdc_price, swap_order, used_for_candles)  AS close_token_a,
+       argMinStateIf(token_b_usdc_price, swap_order, used_for_candles)  AS open_token_b,
+       maxStateIf(token_b_usdc_price, used_for_candles)                 AS high_token_b,
+       minStateIf(token_b_usdc_price, used_for_candles)                 AS low_token_b,
+       argMaxStateIf(token_b_usdc_price, swap_order, used_for_candles)  AS close_token_b,
+       sumState(sign)                                                   AS count,
+       sumState(abs(amount_a * token_a_usdc_price) * sign)              AS volume_usdc,
+       avgState(slippage)                                               AS avg_slippage,
+       maxState(pool_tvl)                                               AS max_pool_tvl,
+       maxState(abs(amount_a * token_a_usdc_price) / pool_tvl)          AS pool_tvl_volume_ratio
+FROM solana_swaps_raw original
+WHERE slippage < 10 and abs(amount_a * token_a_usdc_price) >= 0.01 and amount_a != 0 and amount_b != 0
+GROUP BY timestamp, token_a, token_b, dex, pool_address;
+
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS solana_dex_swaps_1h_candles
+    ENGINE AggregatingMergeTree()
+    ORDER BY (pool_address, timestamp, token_a, token_b, dex)
+    POPULATE
+AS
+WITH slippage < 10 and abs(amount_a * token_a_usdc_price) >= 0.01 and amount_a != 0 and amount_b != 0 AS used_for_candles,
+    tuple(original.timestamp, transaction_index, instruction_address) AS swap_order
+SELECT toStartOfHour(timestamp)                                         AS timestamp,
+       pool_address,
+       token_a,
+       token_b,
+       dex,
+       argMinStateIf(token_a_usdc_price, swap_order, used_for_candles)  AS open_token_a,
+       maxStateIf(token_a_usdc_price, used_for_candles)                 AS high_token_a,
+       minStateIf(token_a_usdc_price, used_for_candles)                 AS low_token_a,
+       argMaxStateIf(token_a_usdc_price, swap_order, used_for_candles)  AS close_token_a,
+       argMinStateIf(token_b_usdc_price, swap_order, used_for_candles)  AS open_token_b,
+       maxStateIf(token_b_usdc_price, used_for_candles)                 AS high_token_b,
+       minStateIf(token_b_usdc_price, used_for_candles)                 AS low_token_b,
+       argMaxStateIf(token_b_usdc_price, swap_order, used_for_candles)  AS close_token_b,
+       sumState(sign)                                                   AS count,
+       sumState(abs(amount_a * token_a_usdc_price) * sign)              AS volume_usdc,
+       avgState(slippage)                                               AS avg_slippage,
+       maxState(pool_tvl)                                               AS max_pool_tvl,
+       maxState(abs(amount_a * token_a_usdc_price) / pool_tvl)          AS pool_tvl_volume_ratio
+FROM solana_swaps_raw original
+WHERE slippage < 10 and abs(amount_a * token_a_usdc_price) >= 0.01 and amount_a != 0 and amount_b != 0
+GROUP BY timestamp, token_a, token_b, dex, pool_address;
+
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS solana_account_trades_daily ENGINE AggregatingMergeTree() ORDER BY (timestamp, account, token)
+AS
+WITH trades AS (
+  SELECT
+      timestamp,
+      transaction_index,
+      instruction_address,
+      token_a as token,
+      account,
+      amount_a AS amount,
+      amount_a * token_a_usdc_price AS amount_usdc,
+      toFloat64(token_a_balance) AS balance,
+      toFloat64(token_a_acquisition_cost_usd) AS acquisition_cost_usd,
+      toFloat64(token_a_profit_usdc) AS profit_usdc,
+      toFloat64(token_a_cost_usdc) AS cost_usdc
+  FROM solana_swaps_raw
+  WHERE amount_a != 0
+    AND amount_b != 0
+    AND sign > 0  -- FIXME !!!
+  ORDER BY timestamp, transaction_index, instruction_address
+  UNION ALL
+  SELECT
+      timestamp,
+      transaction_index,
+      instruction_address,
+      token_b as token,
+      account,
+      amount_b AS amount,
+      amount_b * token_b_usdc_price AS amount_usdc,
+      toFloat64(token_b_balance) AS balance,
+      toFloat64(token_b_acquisition_cost_usd) AS acquisition_cost_usd,
+      toFloat64(token_b_profit_usdc) AS profit_usdc,
+      toFloat64(token_b_cost_usdc) AS cost_usdc
+  FROM solana_swaps_raw
+  WHERE amount_a != 0
+    AND amount_b != 0
+    AND sign > 0
+  ORDER BY timestamp, transaction_index, instruction_address
+)
+SELECT
+    toStartOfDay(timestamp) as timestamp,
+    token,
+    account,
+    countIfState(amount > 0) as buy_count,
+    countIfState(amount < 0) as sell_count,
+    sumStateIf(abs(amount), amount > 0) as buy_amount,
+    sumStateIf(abs(amount), amount < 0) as sell_amount,
+    sumStateIf(abs(amount_usdc), amount > 0) as buy_amount_usdc,
+    sumStateIf(abs(amount_usdc), amount < 0) as sell_amount_usdc,
+    sumState(profit_usdc) as profit_usdc,
+    sumState(cost_usdc) as cost_usdc,
+    anyLastState(balance) as balance,
+    maxState(acquisition_cost_usd) as acquisition_cost_usd
+FROM trades
+GROUP BY timestamp, account, token;
 

@@ -71,21 +71,123 @@ export function mapTypeAstToTs(type: TypeAst, options: MappingOptions): string {
 }
 
 export function map(tables: readonly TableAst[], options: MappingOptions): readonly MappedTable[] {
-  return tables.map((t) => ({
-    interfaceName: toPascalCase(t.name),
-    columns: t.columns.map((c) => {
-      const chType = c.rawType.trim();
-      const tsType = mapTypeAstToTs(c.type, options);
+  return tables.map((t) => {
+    const src = t.mvFrom ? findTableByName(tables, t.mvFrom) : undefined;
+    const aliasMap = buildAliasMap(t);
+    const mvInfo = buildMvInfoMap(t);
+    const cteMap = buildCteAliasMap(t);
+    const cteSrc = t.mvCte?.src ? findTableByName(tables, t.mvCte.src) : undefined;
+    const cols = t.columns.map((c) => {
+      let type = c.type;
+      let raw = c.rawType;
+      if (type.name === 'Unknown' && src) {
+        // Try to resolve by same-name column first
+        let sourceName = c.name;
+        // If MV had an alias mapping, use the original source column name
+        const mapped = aliasMap.get(c.name);
+        if (mapped) sourceName = mapped;
+        const sc = findColumnByName(src, sourceName);
+        if (sc) { type = sc.type; raw = sc.rawType; }
+      } else if (type.name === 'Unknown' && !src) {
+        // FROM CTE: resolve via final-select info → CTE alias → base table
+        const info = mvInfo.get(c.name);
+        if (info) {
+          const cte = info.src ? cteMap.get(info.src) : undefined;
+          let baseType: TypeAst | undefined;
+          if (cte) {
+            if (cte.func) {
+              baseType = mapFuncToType(cte.func);
+            }
+            if ((!baseType || baseType.name === 'Unknown') && cteSrc && cte.src) {
+              const sc = findColumnByName(cteSrc, cte.src);
+              baseType = sc?.type;
+            }
+          }
+          const resolved = resolveAggReturnType(info.func, baseType);
+          if (resolved) type = resolved;
+          else if (!info.func) type = { name: 'String', args: [] }; // plain identifiers fallback
+        } else {
+          // No info: fallback to string
+          type = { name: 'String', args: [] };
+        }
+      }
+      const chType = raw.trim();
+      const tsType = mapTypeAstToTs(type, options);
       return {
         name: options.camelCase ? toCamelCase(c.name) : c.name,
         tsType,
         chType,
-        typeAst: c.type,
+        typeAst: type,
         comment: c.comment
       };
-    }),
-    meta: { partitionBy: t.partitionBy, orderBy: t.orderBy }
-  }));
+    });
+    return {
+      interfaceName: toPascalCase(t.name),
+      columns: cols,
+      meta: { partitionBy: t.partitionBy, orderBy: t.orderBy }
+    };
+  });
+}
+
+function buildAliasMap(t: TableAst): Map<string, string> {
+  const map = new Map<string, string>();
+  if (t.mvSelect) {
+    for (const item of t.mvSelect) {
+      if (item.alias) {
+        // Prefer mapping alias to captured source column name when present; fallback to item.name
+        map.set(item.alias, item.srcName ?? item.name);
+      }
+    }
+  }
+  return map;
+}
+
+function buildMvInfoMap(t: TableAst): Map<string, { func?: string; src?: string }> {
+  const res = new Map<string, { func?: string; src?: string }>();
+  if (!t.mvSelect) return res;
+  for (const item of t.mvSelect) {
+    const key = item.alias ?? item.name;
+    res.set(key, { func: item.func, src: item.srcName });
+  }
+  return res;
+}
+
+function buildCteAliasMap(t: TableAst): Map<string, { func?: string; src?: string }> {
+  const res = new Map<string, { func?: string; src?: string }>();
+  if (!t.mvCte) return res;
+  for (const it of t.mvCte.columns) {
+    const key = it.alias ?? it.name;
+    res.set(key, { func: it.func, src: it.srcName ?? it.name });
+  }
+  return res;
+}
+
+function mapFuncToType(fn: string): TypeAst {
+  const f = fn.toLowerCase();
+  if (f.startsWith('tofloat')) return { name: 'Float64', args: [] };
+  if (f.startsWith('toint')) return { name: 'Int64', args: [] };
+  if (f.startsWith('touint')) return { name: 'UInt64', args: [] };
+  if (f.startsWith('todecimal')) return { name: 'Decimal', args: [] };
+  if (f === 'tostartofday') return { name: 'DateTime', args: [] };
+  return { name: 'Unknown', args: [] };
+}
+
+function resolveAggReturnType(func: string | undefined, base: TypeAst | undefined): TypeAst | undefined {
+  if (!func) return base;
+  const f = func.toLowerCase();
+  if (f === 'tostartofday') return { name: 'DateTime', args: [] };
+  if (/^sum/.test(f) || /^avg/.test(f)) return { name: 'Float64', args: [] };
+  if (/^count/.test(f)) return { name: 'Float64', args: [] };
+  if (/^anylast/.test(f)) return base ?? { name: 'Unknown', args: [] };
+  if (/^max/.test(f) || /^min/.test(f) || /^argmin/.test(f) || /^argmax/.test(f)) return base ?? { name: 'Unknown', args: [] };
+  return base;
+}
+
+function findTableByName(tables: readonly TableAst[], name: string): TableAst | undefined {
+  return tables.find((x) => x.name === name) || tables.find((x) => toPascalCase(x.name) === toPascalCase(name));
+}
+function findColumnByName(table: TableAst, name: string) {
+  return table.columns.find((cc) => cc.name === name || toCamelCase(cc.name) === toCamelCase(name));
 }
 
 function isTypeAst(arg: TypeArg | undefined): arg is TypeAst {

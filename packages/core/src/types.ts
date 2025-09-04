@@ -31,6 +31,16 @@ export interface TableAst {
   readonly partitionBy?: string;
   /** Optional ORDER BY expression captured raw. */
   readonly orderBy?: string;
+  /** For materialized views without explicit columns: source table name. */
+  readonly mvFrom?: string;
+  /** For materialized views without explicit columns: select items. */
+  readonly mvSelect?: readonly { name: string; alias?: string; srcName?: string; func?: string }[];
+  /** Optional: information extracted from a WITH CTE inside MV. */
+  readonly mvCte?: {
+    readonly name: string;
+    readonly src?: string; // source table from FROM clause of CTE
+    readonly columns: readonly { name: string; alias?: string; srcName?: string; func?: string }[];
+  };
 }
 
 /** Mapping configuration options. */
