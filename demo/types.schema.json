@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SolanaSwapsRaw",
+  "type": "object",
+  "properties": {
+    "timestamp": {
+      "type": "string"
+    },
+    "dex": {
+      "type": "string"
+    },
+    "tokenA": {
+      "type": "string"
+    },
+    "tokenB": {
+      "type": "string"
+    },
+    "amountA": {
+      "type": "number"
+    },
+    "amountB": {
+      "type": "number"
+    },
+    "tokenAUsdcPrice": {
+      "type": "number"
+    },
+    "tokenBUsdcPrice": {
+      "type": "number"
+    },
+    "tokenABalance": {
+      "type": "number"
+    },
+    "tokenAAcquisitionCostUsd": {
+      "type": "number"
+    },
+    "tokenBBalance": {
+      "type": "number"
+    },
+    "tokenBAcquisitionCostUsd": {
+      "type": "number"
+    },
+    "tokenAProfitUsdc": {
+      "type": "number"
+    },
+    "tokenBProfitUsdc": {
+      "type": "number"
+    },
+    "tokenACostUsdc": {
+      "type": "number"
+    },
+    "tokenBCostUsdc": {
+      "type": "number"
+    },
+    "account": {
+      "type": "string"
+    },
+    "blockNumber": {
+      "type": "number"
+    },
+    "transactionIndex": {
+      "type": "number"
+    },
+    "instructionAddress": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "transactionHash": {
+      "type": "string"
+    },
+    "slippage": {
+      "type": "number"
+    },
+    "poolTokenAReserve": {
+      "type": "number"
+    },
+    "poolTokenBReserve": {
+      "type": "number"
+    },
+    "poolTvl": {
+      "type": "number"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "timestamp",
+    "dex",
+    "tokenA",
+    "tokenB",
+    "amountA",
+    "amountB",
+    "tokenAUsdcPrice",
+    "tokenBUsdcPrice",
+    "tokenABalance",
+    "tokenAAcquisitionCostUsd",
+    "tokenBBalance",
+    "tokenBAcquisitionCostUsd",
+    "tokenAProfitUsdc",
+    "tokenBProfitUsdc",
+    "tokenACostUsdc",
+    "tokenBCostUsdc",
+    "account",
+    "blockNumber",
+    "transactionIndex",
+    "instructionAddress",
+    "transactionHash",
+    "slippage",
+    "poolTokenAReserve",
+    "poolTokenBReserve",
+    "poolTvl"
+  ]
+}

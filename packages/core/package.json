@@ -1,0 +1,44 @@
+{
+  "name": "@ch2ts/core",
+  "version": "0.0.0",
+  "description": "Core library: parser, mapper, emitter for ClickHouse → TypeScript",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "rimraf dist && tsup && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "build:types": "rimraf dist .tsbuildinfo && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "clean": "rimraf dist",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "chevrotain": "^10.5.0",
+    "ts-morph": "^22.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "tsup": {
+    "entry": ["src/index.ts"],
+    "format": ["esm", "cjs"],
+    "dts": false,
+    "sourcemap": true,
+    "clean": true,
+    "outDir": "dist"
+  }
+}

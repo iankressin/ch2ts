@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "./.tsbuildinfo",
+    "allowImportingTsExtensions": true,
+    "baseUrl": "./",
+    "paths": {
+      "@ch2ts/core": ["../../packages/core/dist/index.d.ts"],
+      "@ch2ts/presets": ["../../packages/presets/dist/index.d.ts"]
+    }
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../core" },
+    { "path": "../presets" }
+  ]
+}

@@ -1,0 +1,11 @@
+node_modules
+dist
+.turbo
+.tsbuildinfo
+*.tsbuildinfo
+coverage
+.DS_Store
+.idea
+.vscode
+.changeset/*.md
+

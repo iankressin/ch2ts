@@ -1,0 +1,110 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DDL parser (Phase 2) > parses nested wrappers and params 1`] = `
+[
+  {
+    "columns": [
+      {
+        "comment": "id",
+        "name": "a",
+        "rawType": "Nullable(UInt64)",
+        "type": {
+          "args": [
+            {
+              "args": [],
+              "name": "UInt64",
+            },
+          ],
+          "name": "Nullable",
+        },
+      },
+      {
+        "name": "b",
+        "rawType": "LowCardinality(String)",
+        "type": {
+          "args": [
+            {
+              "args": [],
+              "name": "String",
+            },
+          ],
+          "name": "LowCardinality",
+        },
+      },
+      {
+        "name": "c",
+        "rawType": "Array(Nullable(Decimal(38,10)))",
+        "type": {
+          "args": [
+            {
+              "args": [
+                {
+                  "args": [
+                    38,
+                    10,
+                  ],
+                  "name": "Decimal",
+                },
+              ],
+              "name": "Nullable",
+            },
+          ],
+          "name": "Array",
+        },
+      },
+      {
+        "name": "d",
+        "rawType": "Enum8('A'=1,'B'=2)",
+        "type": {
+          "args": [
+            {
+              "key": "A",
+              "value": 1,
+            },
+            {
+              "key": "B",
+              "value": 2,
+            },
+          ],
+          "name": "Enum8",
+        },
+      },
+      {
+        "name": "e",
+        "rawType": "Tuple(String,UInt32)",
+        "type": {
+          "args": [
+            {
+              "args": [],
+              "name": "String",
+            },
+            {
+              "args": [],
+              "name": "UInt32",
+            },
+          ],
+          "name": "Tuple",
+        },
+      },
+      {
+        "name": "f",
+        "rawType": "Map(String,UInt8)",
+        "type": {
+          "args": [
+            {
+              "args": [],
+              "name": "String",
+            },
+            {
+              "args": [],
+              "name": "UInt8",
+            },
+          ],
+          "name": "Map",
+        },
+      },
+    ],
+    "name": "complicated",
+  },
+]
+`;
