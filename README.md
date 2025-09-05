@@ -1,16 +1,18 @@
 # ClickHouse TypeScript Type Generator
 
-A fast, safe, and extensible CLI tool that parses ClickHouse `CREATE TABLE` statements and generates clean, type-safe TypeScript interfaces with optional Zod schemas and JSON Schema definitions.
+Converts ClickHouse `CREATE TABLE` statements into TypeScript interfaces, Zod schemas, and JSON Schema definitions.
 
-## Features
+## What it does
 
-- **🎯 Type-Safe**: Generates accurate TypeScript interfaces from ClickHouse DDL
-- **⚡ Fast**: Built with performance in mind using Chevrotain parser
-- **🔒 Safe**: Tiger Style philosophy with explicit bounds and comprehensive validation
-- **🧩 Extensible**: Modular architecture for easy feature additions
-- **📦 Multiple Outputs**: TypeScript interfaces, Zod schemas, JSON Schema
-- **🎨 Customizable**: Configurable type mappings and naming conventions
-- **🛡️ Robust**: Comprehensive error handling and recovery
+- **Parse ClickHouse DDL**: Reads `CREATE TABLE` and `CREATE MATERIALIZED VIEW` statements
+- **Generate TypeScript interfaces**: Creates typed interfaces for each table with proper column types
+- **Generate Zod schemas**: Creates runtime validation schemas for table data
+- **Generate JSON Schema**: Creates JSON Schema definitions for API documentation
+- **Handle complex types**: Converts ClickHouse types like `Array(String)`, `Nullable(UInt64)`, `Map(String, Float64)` to TypeScript equivalents
+- **Support enums**: Converts `Enum8` and `Enum16` to TypeScript union types
+- **Preserve comments**: Maintains table and column comments in generated code
+- **Multiple output formats**: Choose between TypeScript-only, with Zod schemas, or JSON Schema
+- **Configurable type mapping**: Control how `Int64`, `Decimal`, and `DateTime` types are mapped
 
 ## Installation
 
@@ -324,7 +326,7 @@ const source = generateSource(ddl, mappingOptions, emissionOptions);
 
 ## Supported ClickHouse Features
 
-### ✅ Fully Supported
+### Fully Supported
 - Basic data types (integers, floats, strings, dates)
 - Complex types (Array, Tuple, Map, Nullable, LowCardinality)
 - Enum types (Enum8, Enum16)
@@ -333,12 +335,12 @@ const source = generateSource(ddl, mappingOptions, emissionOptions);
 - Materialized views (with type inference limitations)
 - Multiple table definitions
 
-### ⚠️ Partial Support
+### Partial Support
 - Materialized views (column types inferred as `unknown`, requires manual typing)
 - Complex nested types (deeply nested structures)
 - Custom functions in default values
 
-### ❌ Not Supported
+### Not Supported
 - Views (CREATE VIEW) - skipped during processing
 - Complex table engines with parameters
 - Constraints and indexes
