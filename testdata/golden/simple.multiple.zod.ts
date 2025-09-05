@@ -57,33 +57,7 @@ export interface SolanaSwapsRaw {
   poolTvl: number;
 }
 
-export const SolanaSwapsRawSchema = z.object({
-  timestamp: z.string(),
-  dex: z.string(),
-  tokenA: z.string(),
-  tokenB: z.string(),
-  amountA: z.number(),
-  amountB: z.number(),
-  tokenAUsdcPrice: z.number(),
-  tokenBUsdcPrice: z.number(),
-  tokenABalance: z.number(),
-  tokenAAcquisitionCostUsd: z.number(),
-  tokenBBalance: z.number(),
-  tokenBAcquisitionCostUsd: z.number(),
-  tokenAProfitUsdc: z.number(),
-  tokenBProfitUsdc: z.number(),
-  tokenACostUsdc: z.number(),
-  tokenBCostUsdc: z.number(),
-  account: z.string(),
-  blockNumber: z.number(),
-  transactionIndex: z.number(),
-  instructionAddress: z.array(z.number()),
-  transactionHash: z.string(),
-  slippage: z.number(),
-  poolTokenAReserve: z.number(),
-  poolTokenBReserve: z.number(),
-  poolTvl: z.number(),
-});
+export const SolanaSwapsRawSchema = z.object({ timestamp: z.string(), dex: z.string(), tokenA: z.string(), tokenB: z.string(), amountA: z.number(), amountB: z.number(), tokenAUsdcPrice: z.number(), tokenBUsdcPrice: z.number(), tokenABalance: z.number(), tokenAAcquisitionCostUsd: z.number(), tokenBBalance: z.number(), tokenBAcquisitionCostUsd: z.number(), tokenAProfitUsdc: z.number(), tokenBProfitUsdc: z.number(), tokenACostUsdc: z.number(), tokenBCostUsdc: z.number(), account: z.string(), blockNumber: z.number(), transactionIndex: z.number(), instructionAddress: z.array(z.number()), transactionHash: z.string(), slippage: z.number(), poolTokenAReserve: z.number(), poolTokenBReserve: z.number(), poolTvl: z.number() });
 
 export interface SolanaDexSwaps5mCandles {
   /** Original: DateTime */
@@ -124,26 +98,7 @@ export interface SolanaDexSwaps5mCandles {
   poolTvlVolumeRatio: number;
 }
 
-export const SolanaDexSwaps5mCandlesSchema = z.object({
-  timestamp: z.string(),
-  poolAddress: z.any(),
-  tokenA: z.string(),
-  tokenB: z.string(),
-  dex: z.string(),
-  openTokenA: z.number(),
-  highTokenA: z.number(),
-  lowTokenA: z.number(),
-  closeTokenA: z.number(),
-  openTokenB: z.number(),
-  highTokenB: z.number(),
-  lowTokenB: z.number(),
-  closeTokenB: z.number(),
-  count: z.any(),
-  volumeUsdc: z.number(),
-  avgSlippage: z.number(),
-  maxPoolTvl: z.number(),
-  poolTvlVolumeRatio: z.number(),
-});
+export const SolanaDexSwaps5mCandlesSchema = z.object({ timestamp: z.string(), poolAddress: z.any(), tokenA: z.string(), tokenB: z.string(), dex: z.string(), openTokenA: z.number(), highTokenA: z.number(), lowTokenA: z.number(), closeTokenA: z.number(), openTokenB: z.number(), highTokenB: z.number(), lowTokenB: z.number(), closeTokenB: z.number(), count: z.any(), volumeUsdc: z.number(), avgSlippage: z.number(), maxPoolTvl: z.number(), poolTvlVolumeRatio: z.number() });
 
 export interface SolanaDexSwaps1hCandles {
   /** Original: DateTime */
@@ -184,26 +139,7 @@ export interface SolanaDexSwaps1hCandles {
   poolTvlVolumeRatio: number;
 }
 
-export const SolanaDexSwaps1hCandlesSchema = z.object({
-  timestamp: z.string(),
-  poolAddress: z.any(),
-  tokenA: z.string(),
-  tokenB: z.string(),
-  dex: z.string(),
-  openTokenA: z.number(),
-  highTokenA: z.number(),
-  lowTokenA: z.number(),
-  closeTokenA: z.number(),
-  openTokenB: z.number(),
-  highTokenB: z.number(),
-  lowTokenB: z.number(),
-  closeTokenB: z.number(),
-  count: z.any(),
-  volumeUsdc: z.number(),
-  avgSlippage: z.number(),
-  maxPoolTvl: z.number(),
-  poolTvlVolumeRatio: z.number(),
-});
+export const SolanaDexSwaps1hCandlesSchema = z.object({ timestamp: z.string(), poolAddress: z.any(), tokenA: z.string(), tokenB: z.string(), dex: z.string(), openTokenA: z.number(), highTokenA: z.number(), lowTokenA: z.number(), closeTokenA: z.number(), openTokenB: z.number(), highTokenB: z.number(), lowTokenB: z.number(), closeTokenB: z.number(), count: z.any(), volumeUsdc: z.number(), avgSlippage: z.number(), maxPoolTvl: z.number(), poolTvlVolumeRatio: z.number() });
 
 export interface SolanaAccountTradesDaily {
   /** Original: Unknown */
@@ -234,18 +170,4 @@ export interface SolanaAccountTradesDaily {
   acquisitionCostUsd: number;
 }
 
-export const SolanaAccountTradesDailySchema = z.object({
-  timestamp: z.string(),
-  token: z.string(),
-  account: z.string(),
-  buyCount: z.number(),
-  sellCount: z.number(),
-  buyAmount: z.number(),
-  sellAmount: z.number(),
-  buyAmountUsdc: z.number(),
-  sellAmountUsdc: z.number(),
-  profitUsdc: z.number(),
-  costUsdc: z.number(),
-  balance: z.number(),
-  acquisitionCostUsd: z.number(),
-});
+export const SolanaAccountTradesDailySchema = z.object({ timestamp: z.string(), token: z.string(), account: z.string(), buyCount: z.number(), sellCount: z.number(), buyAmount: z.number(), sellAmount: z.number(), buyAmountUsdc: z.number(), sellAmountUsdc: z.number(), profitUsdc: z.number(), costUsdc: z.number(), balance: z.number(), acquisitionCostUsd: z.number() });

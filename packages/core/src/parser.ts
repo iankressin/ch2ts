@@ -1,4 +1,5 @@
 import { createToken, Lexer, type IToken, type TokenType } from "chevrotain";
+import { assert } from "./ast-utils.js";
 import type { TableAst, ColumnAst, TypeAst, TypeArg } from "./types.js";
 
 const LineComment = createToken({
@@ -111,6 +112,7 @@ export function parse(ddl: string): readonly TableAst[] {
 class Parser {
   private i = 0;
   constructor(private readonly tokens: readonly IToken[]) {}
+  private static readonly MAX_STEPS = 200000;
   isAtEnd(): boolean {
     return this.i >= this.tokens.length;
   }
@@ -130,6 +132,27 @@ class Parser {
     if (!t || t.tokenType !== tt) throw new Error(`Expected ${what}`);
     this.i++;
     return t;
+  }
+
+  // Skip a balanced parenthesis block. Assumes the last consumed token was '('.
+  private skipBalancedParens(): void {
+    let depth = 1;
+    let steps = 0;
+    while (!this.isAtEnd() && depth > 0) {
+      const t = this.peek();
+      if (!t) break;
+      if (t.tokenType === LParen) {
+        this.i++;
+        depth++;
+      } else if (t.tokenType === RParen) {
+        this.i++;
+        depth--;
+      } else {
+        this.i++;
+      }
+      steps++;
+      assert(steps <= Parser.MAX_STEPS, "Exceeded max steps while skipping parentheses");
+    }
   }
 
   createTable(): TableAst {
@@ -156,7 +179,12 @@ class Parser {
           columns.push(this.columnDef());
         } while (this.match(Comma));
         if (!this.match(RParen)) {
-          while (!this.isAtEnd() && !this.match(RParen)) this.i++;
+          let steps = 0;
+          while (!this.isAtEnd() && !this.match(RParen)) {
+            this.i++;
+            steps++;
+            assert(steps <= Parser.MAX_STEPS, "Exceeded max steps while seeking ')' in column list");
+          }
         }
       }
     }
@@ -173,12 +201,7 @@ class Parser {
       }
       // Optional ( ... ) skip until ')'
       if (this.match(LParen)) {
-        let depth = 1;
-        while (!this.isAtEnd() && depth > 0) {
-          if (this.match(LParen)) depth++;
-          else if (this.match(RParen)) depth--;
-          else this.i++;
-        }
+        this.skipBalancedParens();
       }
     }
     if (this.match(PARTITION)) {
@@ -195,7 +218,12 @@ class Parser {
       if (columns.length === 0) {
         // expect possibly POPULATE or other options, then AS [WITH ...] SELECT ... FROM ...
         if (!this.match(AS)) {
-          while (!this.isAtEnd() && !this.match(AS)) this.i++;
+          let steps = 0;
+          while (!this.isAtEnd() && !this.match(AS)) {
+            this.i++;
+            steps++;
+            assert(steps <= Parser.MAX_STEPS, "Exceeded max steps while seeking AS in MV");
+          }
         }
         // After AS, there may be a WITH CTE block; if present parse basic info, then read the top-level SELECT
         let cteName: string | undefined;
@@ -224,35 +252,30 @@ class Parser {
               cteSrc = this.qualifiedName();
             }
             // Skip to matching ')'
-            let depth = 1;
-            while (!this.isAtEnd() && depth > 0) {
-              if (this.match(LParen)) depth++;
-              else if (this.match(RParen)) depth--;
-              else this.i++;
-            }
+            this.skipBalancedParens();
             // Top-level SELECT after CTE
             this.consume(SELECT, "SELECT");
           } else {
             // WITH named expressions. Skip until SELECT at top level
             let depth = 0;
+            let steps = 0;
             while (!this.isAtEnd()) {
               const t = this.peek();
               if (!t) break;
               if (t.tokenType === LParen) {
                 this.i++;
                 depth++;
-                continue;
-              }
-              if (t.tokenType === RParen) {
+              } else if (t.tokenType === RParen) {
                 this.i++;
                 depth = Math.max(0, depth - 1);
-                continue;
-              }
-              if (t.tokenType === SELECT && depth === 0) {
+              } else if (t.tokenType === SELECT && depth === 0) {
                 this.i++;
                 break;
+              } else {
+                this.i++;
               }
-              this.i++;
+              steps++;
+              assert(steps <= Parser.MAX_STEPS, "Exceeded max steps while scanning WITH block");
             }
           }
         } else {
@@ -327,10 +350,7 @@ class Parser {
     }
     if (this.match(CODEC_KW)) {
       this.consume(LParen, "(");
-      while (!this.match(RParen)) {
-        this.i++;
-        if (this.isAtEnd()) throw new Error("Unterminated CODEC");
-      }
+      this.skipBalancedParens();
     }
     const rawType = this.tokens
       .slice(typeStart, typeEnd)
@@ -394,6 +414,7 @@ class Parser {
       srcName?: string;
       func?: string;
     }[] = [];
+    let steps = 0;
     while (!this.isAtEnd()) {
       const t = this.peek();
       if (!t) break;
@@ -422,30 +443,26 @@ class Parser {
             if (tt.tokenType === LParen) {
               this.i++;
               depth++;
-              continue;
-            }
-            if (tt.tokenType === RParen) {
+            } else if (tt.tokenType === RParen) {
               this.i++;
               depth--;
-              continue;
-            }
-            if (tt.tokenType === Identifier) {
-              // Heuristic: capture the first non-function identifier as source column
-              const inner1 = this.consume(Identifier, "identifier")
-                .image as string;
-              // If this identifier is followed by '(', treat it as a function name and skip
+            } else if (tt.tokenType === Identifier) {
+              const inner1 = this.consume(Identifier, "identifier").image as string;
               if (this.peek()?.tokenType === LParen) {
-                continue;
+                // treat as nested function name; do not set srcName
+              } else {
+                let inner = inner1;
+                if (this.match(Dot)) {
+                  inner = this.consume(Identifier, "identifier").image as string;
+                }
+                if (!srcName) srcName = inner;
               }
-              let inner = inner1;
-              if (this.match(Dot)) {
-                inner = this.consume(Identifier, "identifier").image as string;
-              }
-              if (!srcName) srcName = inner;
-              continue;
+            } else {
+              // skip others
+              this.i++;
             }
-            // skip others
-            this.i++;
+            steps++;
+            assert(steps <= Parser.MAX_STEPS, "Exceeded max steps while parsing function arguments");
           }
         }
         let alias: string | undefined;
@@ -458,18 +475,23 @@ class Parser {
       }
       // skip any other tokens until comma or FROM
       this.i++;
+      steps++;
+      assert(steps <= Parser.MAX_STEPS, "Exceeded max steps while parsing select list");
     }
     return items;
   }
 
   private captureExpressionUntil(stoppers: TokenType[]): string {
     const parts: string[] = [];
+    let steps = 0;
     while (!this.isAtEnd()) {
       const t = this.peek();
       if (!t) break;
       if (stoppers.length > 0 && stoppers.includes(t.tokenType)) break;
       parts.push(String(t.image));
       this.i++;
+      steps++;
+      assert(steps <= Parser.MAX_STEPS, "Exceeded max steps while capturing expression");
     }
     return parts.join("").trim().replace(/;\s*$/, "");
   }

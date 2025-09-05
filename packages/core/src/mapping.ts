@@ -1,13 +1,14 @@
 import type {
   MappingOptions,
   MappedTable,
+  ColumnAst,
   TableAst,
   TypeAst,
   TypeArg,
   EnumMember,
 } from "./types.js";
 import { toCamelCase, toPascalCase } from "./types.js";
-import { firstTypeArg, secondTypeArg, toTypeOrUnknown } from "./ast-utils.js";
+import { assert, firstTypeArg, secondTypeArg, toTypeOrUnknown } from "./ast-utils.js";
 
 /** Map a ClickHouse TypeAst to a TypeScript type string. */
 export function mapTypeAstToTs(type: TypeAst, options: MappingOptions): string {
@@ -92,7 +93,8 @@ export function map(
   tables: readonly TableAst[],
   options: MappingOptions,
 ): readonly MappedTable[] {
-  return tables.map((t) => {
+  assert(Array.isArray(tables), "map: tables must be an array");
+  return tables.map((t: TableAst) => {
     const src = t.mvFrom ? findTableByName(tables, t.mvFrom) : undefined;
     const aliasMap = buildAliasMap(t);
     const mvInfo = buildMvInfoMap(t);
@@ -100,7 +102,7 @@ export function map(
     const cteSrc = t.mvCte?.src
       ? findTableByName(tables, t.mvCte.src)
       : undefined;
-    const cols = t.columns.map((c) => {
+    const cols = t.columns.map((c: ColumnAst) => {
       let type = c.type;
       let raw = c.rawType;
       if (type.name === "Unknown" && src) {

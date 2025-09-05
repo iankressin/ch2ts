@@ -18,7 +18,16 @@ export function emitJsonSchema(mapped: readonly MappedTable[]): string {
     props[col.name] = jsonSchemaForType(col.typeAst, col.tsType);
   }
   (schema as { properties: Record<string, unknown> }).properties = props;
-  return JSON.stringify(schema, null, 2);
+  const json = JSON.stringify(schema, null, 2);
+  // Collapse the "required" array to a single line to match golden outputs
+  return json.replace(/"required":\s*\[(?:\s*"[^"]+"\s*,?\s*)+\]/g, (m) => {
+    const items = m
+      .slice(m.indexOf("[") + 1, m.lastIndexOf("]"))
+      .split(/\s*,\s*/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    return `"required": [${items.join(", ")}]`;
+  });
 }
 
 function jsonSchemaForType(

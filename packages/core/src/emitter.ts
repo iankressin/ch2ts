@@ -3,6 +3,7 @@ import {
   QuoteKind,
   StructureKind,
   VariableDeclarationKind,
+  IndentationText,
   type PropertySignatureStructure,
 } from "ts-morph";
 import type {
@@ -12,27 +13,34 @@ import type {
   TypeAst,
   TypeArg,
 } from "./types.js";
-import { firstTypeArg, secondTypeArg, toTypeOrUnknown } from "./ast-utils.js";
+import { assert, firstTypeArg, secondTypeArg, toTypeOrUnknown } from "./ast-utils.js";
+type MappedColumn = MappedTable["columns"][number];
 
 /** Emit TypeScript source from mapped tables (ts-morph). */
 export function emit(
   mapped: readonly MappedTable[],
   options: EmissionOptions,
 ): string {
+  assert(Array.isArray(mapped), "emit: mapped must be an array");
   const project = new Project({
     useInMemoryFileSystem: true,
-    manipulationSettings: { quoteKind: QuoteKind.Single },
+    manipulationSettings: {
+      quoteKind: QuoteKind.Double,
+      indentationText: IndentationText.TwoSpaces,
+      // Disable inserting indentation for new lines in object literals to match goldens
+      // We'll control formatting in initializer strings ourselves.
+    },
   });
   const sf = project.createSourceFile("types.ts", "", { overwrite: true });
 
-  const needsIPv4 = mapped.some((t) =>
-    t.columns.some((c) => c.tsType === "IPv4"),
+  const needsIPv4 = mapped.some((t: MappedTable) =>
+    t.columns.some((c: MappedColumn) => c.tsType === "IPv4"),
   );
-  const needsIPv6 = mapped.some((t) =>
-    t.columns.some((c) => c.tsType === "IPv6"),
+  const needsIPv6 = mapped.some((t: MappedTable) =>
+    t.columns.some((c: MappedColumn) => c.tsType === "IPv6"),
   );
-  const needsDecimal = mapped.some((t) =>
-    t.columns.some((c) => c.tsType === "Decimal"),
+  const needsDecimal = mapped.some((t: MappedTable) =>
+    t.columns.some((c: MappedColumn) => c.tsType === "Decimal"),
   );
   const needsZod = options.emitZod;
 
@@ -66,7 +74,8 @@ export function emit(
   }
 
   for (const table of mapped) {
-    const props: PropertySignatureStructure[] = table.columns.map((c) => ({
+    assert(table && Array.isArray(table.columns), "emit: table has no columns");
+    const props: PropertySignatureStructure[] = table.columns.map((c: MappedColumn) => ({
       kind: StructureKind.PropertySignature,
       name: c.name,
       type: c.tsType,
@@ -80,16 +89,21 @@ export function emit(
     });
 
     if (needsZod) {
-      const zProps = table.columns
-        .map((c) => `${c.name}: ${zodForTypeAst(c.typeAst, c.tsType)}`)
-        .join(", ");
+      const entries = table.columns.map(
+        (c: MappedColumn) => `${c.name}: ${zodForTypeAst(c.typeAst, c.tsType)}`,
+      );
+      const single = `{ ${entries.join(", ")} }`;
+      const useMultiline = entries.length >= 15 || entries.length > 5 || single.length > 200;
+      const initializer = useMultiline
+        ? `z.object({\n${entries.map((e: string) => `  ${e},`).join("\n")}\n})`
+        : `z.object(${single})`;
       sf.addVariableStatement({
         isExported: true,
         declarationKind: VariableDeclarationKind.Const,
         declarations: [
           {
             name: `${table.interfaceName}Schema`,
-            initializer: `z.object({ ${zProps} })`,
+            initializer,
           },
         ],
       });
@@ -167,8 +181,17 @@ function zodForTypeAst(type: TypeAst, resolvedTsType: string): string {
     case "DateTime64":
       return /\bDate\b/.test(resolvedTsType) ? "z.date()" : "z.string()";
     default:
-      return "z.any()";
+      return safeZodFallback(resolvedTsType);
   }
 }
 
 // helpers moved to ast-utils.ts
+
+function safeZodFallback(resolvedTsType: string): string {
+  // Prefer stricter fallbacks when we can infer intent from the resolved TS type
+  if (/\bDate\b/.test(resolvedTsType)) return "z.date()";
+  if (/\bbigint\b/.test(resolvedTsType)) return "z.bigint()";
+  if (/\bnumber\b/.test(resolvedTsType)) return "z.number()";
+  if (/\bstring\b/.test(resolvedTsType)) return "z.string()";
+  return "z.any()";
+}

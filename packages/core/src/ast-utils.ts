@@ -18,4 +18,13 @@ export function secondTypeArg(t: TypeAst): TypeAst {
   return toTypeOrUnknown(t.args[1]);
 }
 
+export function assert(
+  condition: unknown,
+  message: string,
+): asserts condition {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
 
