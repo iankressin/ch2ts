@@ -206,31 +206,31 @@ export const SolanaDexSwaps1hCandlesSchema = z.object({
 });
 
 export interface SolanaAccountTradesDaily {
-  /** Original: Unknown */
+  /** Original: DateTime */
   timestamp: string;
-  /** Original: Unknown */
+  /** Original: String */
   token: string;
-  /** Original: Unknown */
+  /** Original: String */
   account: string;
-  /** Original: Unknown */
+  /** Original: Float64 */
   buyCount: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   sellCount: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   buyAmount: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   sellAmount: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   buyAmountUsdc: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   sellAmountUsdc: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   profitUsdc: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   costUsdc: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   balance: number;
-  /** Original: Unknown */
+  /** Original: Float64 */
   acquisitionCostUsd: number;
 }
 
