@@ -174,11 +174,11 @@ GROUP BY toDate(created_at);
 **Output TypeScript:**
 ```typescript
 export interface DailyStats {
-  /** Original: Unknown */
-  date: unknown;
-  /** Original: Unknown */
+  /** Original: Date => inferred from the source table */
+  date: string;
+  /** Original: UInt64 => inferred from the source table */
   total_users: number;
-  /** Original: Unknown */
+  /** Original: UInt64 => inferred from the source table */
   avg_age: number;
 }
 ```
